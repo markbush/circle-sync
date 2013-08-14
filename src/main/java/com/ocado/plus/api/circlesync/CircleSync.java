@@ -96,6 +96,7 @@ public class CircleSync {
           peopleToAdd.add(userId);
         }
       }
+      // NOTE: can only add/remove 10 at a time so may need to chop the lists up
       if (!peopleToAdd.isEmpty()) {
         Plus.Circles.AddPeople addPeople = circles.addPeople(circleId);
         addPeople.setUserId(peopleToAdd);
