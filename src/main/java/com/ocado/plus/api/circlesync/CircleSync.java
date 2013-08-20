@@ -11,6 +11,7 @@ import com.google.api.services.plus.model.Circle;
 import com.google.api.services.plus.model.CircleFeed;
 import com.google.api.services.plus.model.PeopleFeed;
 import com.google.api.services.plus.model.Person;
+import com.google.common.collect.Lists;
 import com.ocado.plus.api.Authoriser;
 
 import java.io.IOException;
@@ -28,7 +29,7 @@ public class CircleSync {
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
   private static Plus plus;
   // Set the source loader to one appropriate for your source data
-  private static final SourceLoader sourceLoader = new FileSourceLoader();
+  private static final SourceLoader sourceLoader = new ActiveDirectoryLoader();
 
   public static void main(String[] args) throws IOException, GeneralSecurityException {
     String filename = "circle-sync.conf";
@@ -54,8 +55,12 @@ public class CircleSync {
         if (groupEmails != null && !groupEmails.isEmpty()) {
           List<String> userIds = new ArrayList<String>();
           for (String email : groupEmails) {
-            Person person = people.get(email).execute();
-            userIds.add(person.getId());
+            try {
+              Person person = people.get(email).execute();
+              userIds.add(person.getId());
+            } catch (Throwable t) {
+              System.out.println("Cannot find Google+ profile for: " + email);
+            }
           }
           mapping.setUsers(userIds);
           mappingsToAction.add(mapping);
@@ -80,6 +85,7 @@ public class CircleSync {
       if (circleId == null) {
         // New Circle - need to create
         Circle circle = new Circle();
+        System.out.println("Creating Circle: " + mapping.getCircleName());
         circle.setDisplayName(mapping.getCircleName());
         Plus.Circles.Insert addCircle = circles.insert("me", circle);
         Circle newCircle = addCircle.execute();
@@ -96,10 +102,11 @@ public class CircleSync {
           peopleToAdd.add(userId);
         }
       }
-      // NOTE: can only add/remove 10 at a time so may need to chop the lists up
-      if (!peopleToAdd.isEmpty()) {
+      // The API only allows up to 10 people to be added/removed at a time.
+      List<List<String>> peopleToAddPartitions = Lists.partition(peopleToAdd, 10);
+      for (List<String> peopleSubset : peopleToAddPartitions) {
         Plus.Circles.AddPeople addPeople = circles.addPeople(circleId);
-        addPeople.setUserId(peopleToAdd);
+        addPeople.setUserId(peopleSubset);
         addPeople.setCircleId(circleId);
         addPeople.execute();
       }
@@ -111,9 +118,11 @@ public class CircleSync {
           peopleToRemove.add(userId);
         }
       }
-      if (!peopleToRemove.isEmpty()) {
+      // The API only allows up to 10 people to be added/removed at a time.
+      List<List<String>> peopleToRemovePartitions = Lists.partition(peopleToRemove, 10);
+      for (List<String> peopleSubset : peopleToRemovePartitions) {
         Plus.Circles.RemovePeople removePeople = circles.removePeople(circleId);
-        removePeople.setUserId(peopleToRemove);
+        removePeople.setUserId(peopleSubset);
         removePeople.setCircleId(circleId);
         removePeople.execute();
       }
