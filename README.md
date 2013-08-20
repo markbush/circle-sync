@@ -33,11 +33,20 @@ the current directory.  This file should have lines of the form:
 <source identifier>:<Circle name>
 
 All white space in the file is significant.  The base application expects
-<source identifier> to be the name of a file containing the list of email
-addresses to sync.  The Circle will be created if it doesn't already exist.
+<source identifier> to be the name of a group to be looked up in LDAP
+(such as Active Directory).
+
+NOTE: the group name should be fully qualified, such as:
+      CN=Marketing,OU=Groups,DC=example,DC=com
+
+The Circle will be created if it doesn't already exist.
 
 You can specify an alternate configuration file as an argument to the
 application when you run it.
+
+If you replace the definition of "sourceLoader" in CircleSync with an
+instance of FileSourceLoader, then the source identifier can be the
+name of a file containing email addresses (one per line).
 
 Running the Application
 -----------------------
